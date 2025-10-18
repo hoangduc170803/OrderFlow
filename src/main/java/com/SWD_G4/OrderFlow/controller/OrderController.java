@@ -4,12 +4,16 @@ import com.SWD_G4.OrderFlow.dto.request.CreateOrderRequest;
 import com.SWD_G4.OrderFlow.dto.response.ApiResponse;
 import com.SWD_G4.OrderFlow.dto.response.OrderResponse;
 import com.SWD_G4.OrderFlow.entity.User;
+import com.SWD_G4.OrderFlow.exception.AppException;
+import com.SWD_G4.OrderFlow.exception.ErrorCode;
+import com.SWD_G4.OrderFlow.repository.UserRepository;
 import com.SWD_G4.OrderFlow.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,12 +25,20 @@ import java.util.List;
 public class OrderController {
     
     private final OrderService orderService;
+    private final UserRepository userRepository;
+    
+    private User extractUserFromAuthentication(Authentication authentication) {
+        Jwt jwt = (Jwt) authentication.getPrincipal();
+        String username = jwt.getSubject();
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+    }
     
     @PostMapping
     public ResponseEntity<ApiResponse<OrderResponse>> createOrder(
             @Valid @RequestBody CreateOrderRequest request,
             Authentication authentication) {
-        User user = (User) authentication.getPrincipal();
+        User user = extractUserFromAuthentication(authentication);
         
         OrderResponse order = orderService.createOrder(user, request);
         
@@ -41,7 +53,7 @@ public class OrderController {
     public ResponseEntity<ApiResponse<OrderResponse>> confirmCODOrder(
             @PathVariable Long orderId,
             Authentication authentication) {
-        User user = (User) authentication.getPrincipal();
+        User user = extractUserFromAuthentication(authentication);
         
         OrderResponse order = orderService.confirmCODOrder(user, orderId);
         
@@ -56,7 +68,7 @@ public class OrderController {
     public ResponseEntity<ApiResponse<OrderResponse>> getOrder(
             @PathVariable Long orderId,
             Authentication authentication) {
-        User user = (User) authentication.getPrincipal();
+        User user = extractUserFromAuthentication(authentication);
         
         OrderResponse order = orderService.getOrder(user, orderId);
         
@@ -69,7 +81,7 @@ public class OrderController {
     
     @GetMapping
     public ResponseEntity<ApiResponse<List<OrderResponse>>> getUserOrders(Authentication authentication) {
-        User user = (User) authentication.getPrincipal();
+        User user = extractUserFromAuthentication(authentication);
         
         List<OrderResponse> orders = orderService.getUserOrders(user);
         

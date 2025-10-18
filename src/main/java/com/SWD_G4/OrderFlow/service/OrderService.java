@@ -57,6 +57,7 @@ public class OrderService {
                 .build();
         
         order = orderRepository.save(order);
+        log.info("Order saved successfully with ID: {} and OrderNumber: {}", order.getId(), order.getOrderNumber());
         
         // Create order items from cart items
         final Order finalOrder = order;
@@ -83,6 +84,7 @@ public class OrderService {
         
         // Clear cart after successful order creation
         cartItemRepository.deleteByCart(cart);
+        cart.getCartItems().clear(); // Clear the collection to avoid Hibernate merge issues
         cart.calculateTotalAmount();
         cartRepository.save(cart);
         
@@ -141,7 +143,30 @@ public class OrderService {
     }
     
     public List<OrderResponse> getUserOrders(User user) {
-        List<Order> orders = orderRepository.findByUserOrderByCreatedAtDesc(user);
+        log.info("Getting orders for user: {} (ID: {})", user.getUsername(), user.getId());
+        
+        // Check if user has FLORIST role
+        boolean isFlorist = user.getRoles() != null && 
+                user.getRoles().stream()
+                        .anyMatch(role -> "FLORIST".equals(role.getName()));
+        
+        List<Order> orders;
+        if (isFlorist) {
+            // Florist can see all orders
+            log.info("User {} is a florist, getting all orders", user.getUsername());
+            orders = orderRepository.findAllWithUser();
+        } else {
+            // Regular user can only see their own orders
+            orders = orderRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
+        }
+        
+        log.info("Found {} orders for user: {} (isFlorist: {})", orders.size(), user.getUsername(), isFlorist);
+        
+        if (!orders.isEmpty()) {
+            log.info("First order details: ID={}, OrderNumber={}, Status={}, UserID={}", 
+                    orders.get(0).getId(), orders.get(0).getOrderNumber(), orders.get(0).getStatus(),
+                    orders.get(0).getUser() != null ? orders.get(0).getUser().getId() : "null");
+        }
         
         return orders.stream()
                 .map(orderMapper::toOrderResponse)

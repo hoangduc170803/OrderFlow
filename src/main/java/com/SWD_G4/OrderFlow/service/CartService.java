@@ -39,6 +39,9 @@ public class CartService {
     }
     
     public CartResponse addToCart(User user, AddToCartRequest request) {
+        log.info("Adding product {} with quantity {} to cart for user {}", 
+                request.getProductId(), request.getQuantity(), user.getUsername());
+        
         // Validate product exists and is active
         Product product = productRepository.findById(request.getProductId())
                 .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
@@ -56,6 +59,9 @@ public class CartService {
         Cart cart = cartRepository.findByUserWithItems(user)
                 .orElseGet(() -> createCartForUser(user));
         
+        log.info("Cart ID: {}, Current cart items count: {}", 
+                cart.getId(), cart.getCartItems() != null ? cart.getCartItems().size() : 0);
+        
         // Check if product already exists in cart
         Optional<CartItem> existingCartItem = cartItemRepository.findByCartAndProduct(cart, product);
         
@@ -72,6 +78,7 @@ public class CartService {
             cartItem.setQuantity(newQuantity);
             cartItem.calculateTotalPrice();
             cartItemRepository.save(cartItem);
+            log.info("Updated existing cart item, new quantity: {}", newQuantity);
         } else {
             // Create new cart item
             CartItem cartItem = CartItem.builder()
@@ -84,11 +91,19 @@ public class CartService {
             // Calculate total price manually
             cartItem.calculateTotalPrice();
             cartItemRepository.save(cartItem);
+            log.info("Created new cart item with ID: {}", cartItem.getId());
         }
+        
+        // Refresh cart to get updated cart items
+        cart = cartRepository.findByUserWithItems(user)
+                .orElseThrow(() -> new AppException(ErrorCode.CART_NOT_FOUND));
         
         // Recalculate cart total
         cart.calculateTotalAmount();
         cartRepository.save(cart);
+        
+        log.info("Cart updated - Items count: {}, Total amount: {}", 
+                cart.getCartItems() != null ? cart.getCartItems().size() : 0, cart.getTotalAmount());
         
         return cartMapper.toCartResponse(cart);
     }

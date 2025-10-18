@@ -19,6 +19,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     
     List<Order> findByUserOrderByCreatedAtDesc(User user);
     
+    List<Order> findByUserIdOrderByCreatedAtDesc(Long userId);
+    
     Page<Order> findByUser(User user, Pageable pageable);
     
     Optional<Order> findByOrderNumber(String orderNumber);
@@ -28,4 +30,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     
     @Query("SELECT o FROM Order o JOIN FETCH o.user WHERE o.id = :id")
     Optional<Order> findByIdWithUser(@Param("id") Long id);
+    
+    @Query("SELECT o FROM Order o JOIN FETCH o.user ORDER BY o.createdAt DESC")
+    List<Order> findAllWithUser();
 }
