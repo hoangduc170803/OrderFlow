@@ -392,16 +392,8 @@ Authorization: Bearer {florist_token}
 2. Generate App Password
 3. Configure email settings in application.yaml
 
-### 2. Database Setup
-```sql
--- Add email column to users table
-ALTER TABLE users ADD COLUMN email VARCHAR(255);
 
--- Create other required tables (carts, cart_items, orders, order_items)
--- See ENTITY_GUIDE.md for complete schema
-```
-
-### 3. Testing
+### 2. Testing
 1. Create user with email address
 2. Place COD order
 3. Confirm order
