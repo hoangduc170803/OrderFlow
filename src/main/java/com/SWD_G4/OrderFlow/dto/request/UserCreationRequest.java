@@ -3,6 +3,7 @@ package com.SWD_G4.OrderFlow.dto.request;
 import java.time.LocalDate;
 
 import com.SWD_G4.OrderFlow.validator.DobConstraint;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Size;
 
 
@@ -21,6 +22,9 @@ public class UserCreationRequest {
 
     @Size(min = 6, message = "INVALID_PASSWORD")
     String password;
+
+    @Email(message = "INVALID_EMAIL")
+    String email;
 
     String firstName;
     String lastName;
