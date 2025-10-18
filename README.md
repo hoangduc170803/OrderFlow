@@ -341,10 +341,6 @@ app:
 - Use meaningful commit messages
 - Follow Java coding standards
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ## 👥 Team
 
 - **Backend Development**: Spring Boot, JPA, Security
