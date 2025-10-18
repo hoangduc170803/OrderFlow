@@ -332,31 +332,7 @@ app:
 - Detailed error logging
 - User-friendly error messages
 
-## 🚀 Deployment
 
-### Production Considerations
-1. **Environment Variables**: Use environment variables for sensitive data
-2. **Database**: Use production MySQL instance
-3. **Email**: Configure production SMTP server
-4. **Security**: Use strong JWT secret keys
-5. **Monitoring**: Enable application monitoring
-6. **Logging**: Configure appropriate log levels
-
-### Docker Support
-```dockerfile
-FROM openjdk:17-jdk-slim
-COPY target/OrderFlow-0.0.1-SNAPSHOT.jar app.jar
-EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "/app.jar"]
-```
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/new-feature`
-3. Commit your changes: `git commit -am 'Add new feature'`
-4. Push to the branch: `git push origin feature/new-feature`
-5. Create a Pull Request
 
 ### Development Guidelines
 - Follow Spring Boot best practices
@@ -382,20 +358,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 For questions, issues, or support:
 - **GitHub Issues**: [Create an issue](https://github.com/hoangduc170803/OrderFlow/issues)
 - **Documentation**: Check the guides in the repository
-- **Email**: Contact the development team
+- **Email**: hoangduc170803@gmail.com
 
-## 🎯 Future Enhancements
-
-- [ ] **Mobile App Integration** with push notifications
-- [ ] **Payment Gateway Integration** (Stripe, PayPal)
-- [ ] **SMS Notifications** for critical updates
-- [ ] **Order Tracking** with delivery updates
-- [ ] **Multi-language Support** for international users
-- [ ] **Analytics Dashboard** for order insights
-- [ ] **Inventory Management** with low stock alerts
-- [ ] **Customer Reviews** and rating system
-- [ ] **Discount Codes** and promotional features
-- [ ] **API Rate Limiting** for production use
 
 ---
 
