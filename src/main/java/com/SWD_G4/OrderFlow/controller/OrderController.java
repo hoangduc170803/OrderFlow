@@ -3,6 +3,7 @@ package com.SWD_G4.OrderFlow.controller;
 import com.SWD_G4.OrderFlow.dto.request.CreateOrderRequest;
 import com.SWD_G4.OrderFlow.dto.response.ApiResponse;
 import com.SWD_G4.OrderFlow.dto.response.OrderResponse;
+import com.SWD_G4.OrderFlow.entity.Order;
 import com.SWD_G4.OrderFlow.entity.User;
 import com.SWD_G4.OrderFlow.exception.AppException;
 import com.SWD_G4.OrderFlow.exception.ErrorCode;
@@ -89,6 +90,31 @@ public class OrderController {
                 .code(1000)
                 .message("Get user orders successfully")
                 .result(orders)
+                .build());
+    }
+    
+    @PutMapping("/{orderId}/status")
+    public ResponseEntity<ApiResponse<OrderResponse>> updateOrderStatus(
+            @PathVariable Long orderId,
+            @RequestParam Order.OrderStatus status,
+            Authentication authentication) {
+        User user = extractUserFromAuthentication(authentication);
+        
+        // Check if user is a florist (can update any order status)
+        boolean isFlorist = user.getRoles() != null && 
+                user.getRoles().stream()
+                        .anyMatch(role -> "FLORIST".equals(role.getName()));
+        
+        if (!isFlorist) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+        
+        OrderResponse order = orderService.updateOrderStatus(orderId, status);
+        
+        return ResponseEntity.ok(ApiResponse.<OrderResponse>builder()
+                .code(1000)
+                .message("Order status updated successfully")
+                .result(order)
                 .build());
     }
 }

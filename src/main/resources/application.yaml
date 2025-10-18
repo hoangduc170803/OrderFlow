@@ -18,8 +18,29 @@ spring:
         dialect: org.hibernate.dialect.MySQLDialect
         connection:
           zeroDateTimeBehavior: convertToNull
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: hoangduc170803@gmail.com
+    password: kvowqlypnpohozcq
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          ssl:
+            trust: smtp.gmail.com
 
 jwt:
   signerKey: "1TjXchw5FloESb63Kc+DFhTARvpWL4jUGCwfGWxuG5SIf/1y/LgJxHnMqaF6A/ij"
   valid-duration: 3600 # in second
   refreshable-duration: 36000 # in seconds
+
+# Notification Configuration
+app:
+  notification:
+    enabled: true
+    email:
+      from: hoangduc170803@gmail.com      # ← Email người gửi
+      florist: hoangduc170803@gmail.com   # ← Email chủ shop nhận thông báo

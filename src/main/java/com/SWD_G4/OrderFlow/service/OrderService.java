@@ -7,6 +7,7 @@ import com.SWD_G4.OrderFlow.exception.AppException;
 import com.SWD_G4.OrderFlow.exception.ErrorCode;
 import com.SWD_G4.OrderFlow.mapper.OrderMapper;
 import com.SWD_G4.OrderFlow.repository.*;
+import com.SWD_G4.OrderFlow.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ public class OrderService {
     private final CartItemRepository cartItemRepository;
     private final ProductRepository productRepository;
     private final OrderMapper orderMapper;
+    private final NotificationService notificationService;
     
     public OrderResponse createOrder(User user, CreateOrderRequest request) {
         // Get user's cart with items
@@ -119,11 +121,11 @@ public class OrderService {
         // Decrement product inventory
         decrementProductInventory(order.getOrderItems());
         
-        // TODO: Send notification to florist
-        sendFloristNotification(order);
+        // Send notification to florist
+        notificationService.sendFloristNotification(order);
         
-        // TODO: Send confirmation notification to customer
-        sendCustomerNotification(order);
+        // Send confirmation notification to customer
+        notificationService.sendCustomerNotification(order);
         
         log.info("COD order confirmed: {}", order.getOrderNumber());
         
@@ -173,6 +175,23 @@ public class OrderService {
                 .toList();
     }
     
+    public OrderResponse updateOrderStatus(Long orderId, Order.OrderStatus newStatus) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+        
+        Order.OrderStatus oldStatus = order.getStatus();
+        order.setStatus(newStatus);
+        order = orderRepository.save(order);
+        
+        log.info("Order status updated from {} to {} for order: {}", 
+                oldStatus, newStatus, order.getOrderNumber());
+        
+        // Send status update notification to customer
+        notificationService.sendOrderStatusUpdateNotification(order);
+        
+        return orderMapper.toOrderResponse(order);
+    }
+    
     private void validateStockAvailability(List<CartItem> cartItems) {
         for (CartItem cartItem : cartItems) {
             Product product = cartItem.getProduct();
@@ -200,15 +219,6 @@ public class OrderService {
         }
     }
     
-    private void sendFloristNotification(Order order) {
-        // TODO: Implement notification service
-        log.info("Sending new order notification to florist for order: {}", order.getOrderNumber());
-    }
-    
-    private void sendCustomerNotification(Order order) {
-        // TODO: Implement notification service
-        log.info("Sending order confirmation to customer: {}", order.getUser().getUsername());
-    }
     
     private String generateOrderNumber() {
         String timestamp = String.valueOf(System.currentTimeMillis());

@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import jakarta.persistence.EntityManager;
 
 import java.util.Optional;
 
@@ -27,6 +28,7 @@ public class CartService {
     private final CartItemRepository cartItemRepository;
     private final ProductRepository productRepository;
     private final CartMapper cartMapper;
+    private final EntityManager entityManager;
     
     public CartResponse getCart(User user) {
         Cart cart = cartRepository.findByUserWithItems(user)
@@ -94,7 +96,13 @@ public class CartService {
             log.info("Created new cart item with ID: {}", cartItem.getId());
         }
         
-        // Refresh cart to get updated cart items
+        // Flush any pending changes to database
+        entityManager.flush();
+        
+        // Clear the persistence context to force fresh data from database
+        entityManager.clear();
+        
+        // Refresh cart to get updated cart items and recalculate total
         cart = cartRepository.findByUserWithItems(user)
                 .orElseThrow(() -> new AppException(ErrorCode.CART_NOT_FOUND));
         
