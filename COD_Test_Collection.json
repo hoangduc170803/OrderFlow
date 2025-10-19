@@ -17,7 +17,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"username\": \"customer1\",\n  \"password\": \"password123\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\"\n}"
+          "raw": "{\n  \"username\": \"customer1\",\n  \"password\": \"password123\",\n  \"email\": \"customer1@example.com\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"dob\": \"1990-01-01\"\n}"
         },
         "url": {
           "raw": "http://localhost:8080/order_flow/users",
