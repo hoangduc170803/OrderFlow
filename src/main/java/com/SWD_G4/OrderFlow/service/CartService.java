@@ -9,7 +9,7 @@ import com.SWD_G4.OrderFlow.exception.ErrorCode;
 import com.SWD_G4.OrderFlow.mapper.CartMapper;
 import com.SWD_G4.OrderFlow.repository.CartItemRepository;
 import com.SWD_G4.OrderFlow.repository.CartRepository;
-import com.SWD_G4.OrderFlow.repository.ProductRepository;
+import com.SWD_G4.OrderFlow.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,7 +26,7 @@ public class CartService {
     
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
-    private final ProductRepository productRepository;
+    private final ProductService productService;
     private final CartMapper cartMapper;
     private final EntityManager entityManager;
     
@@ -44,8 +44,8 @@ public class CartService {
         log.info("Adding product {} with quantity {} to cart for user {}", 
                 request.getProductId(), request.getQuantity(), user.getUsername());
         
-        // Validate product exists and is active
-        Product product = productRepository.findById(request.getProductId())
+        // Validate product exists and is active (with cache support)
+        Product product = productService.findById(request.getProductId())
                 .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
         
         if (!product.getIsActive()) {

@@ -8,6 +8,7 @@ import com.SWD_G4.OrderFlow.exception.ErrorCode;
 import com.SWD_G4.OrderFlow.mapper.OrderMapper;
 import com.SWD_G4.OrderFlow.repository.*;
 import com.SWD_G4.OrderFlow.service.NotificationService;
+import com.SWD_G4.OrderFlow.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,7 +29,7 @@ public class OrderService {
     private final OrderItemRepository orderItemRepository;
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
-    private final ProductRepository productRepository;
+    private final ProductService productService;
     private final OrderMapper orderMapper;
     private final NotificationService notificationService;
     
@@ -212,9 +213,10 @@ public class OrderService {
             Product product = orderItem.getProduct();
             int newStock = product.getStockQuantity() - orderItem.getQuantity();
             product.setStockQuantity(newStock);
-            productRepository.save(product);
+            // Save through ProductService to invalidate cache (hotswap)
+            productService.save(product);
             
-            log.info("Decremented stock for product {}: {} -> {}", 
+            log.info("Decremented stock for product {}: {} -> {} (cache invalidated)", 
                     product.getName(), orderItem.getQuantity(), newStock);
         }
     }

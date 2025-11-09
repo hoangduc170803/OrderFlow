@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "COD Flow Test Collection",
-    "description": "Test collection for Cash on Delivery flow",
+    "name": "COD Flow Test Collection with Kafka Notifications",
+    "description": "Test collection for Cash on Delivery flow with Kafka and Email notifications.\n\n📋 Notification Flow:\n1. Step 7 (Confirm COD Order):\n   - Kafka: florist-notifications topic\n   - Kafka: order-notifications topic\n   - Email: Florist and Customer\n\n2. Step 10-11 (Update Order Status):\n   - Kafka: order-status-updates topic\n   - Email: Customer\n\n🔍 How to Verify:\n1. Kafka UI: http://localhost:8081\n2. Check application logs\n3. Check email inboxes\n\n⚙️ Prerequisites:\n1. Start Redis: docker-compose up -d redis\n2. Start Kafka: docker-compose up -d kafka zookeeper\n3. Start Kafka UI: docker-compose up -d kafka-ui\n4. Configure notifications in application.yaml",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -30,6 +30,33 @@
     },
     {
       "name": "2. Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Test: Login and save token",
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Login successful\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.code).to.eql(1000);",
+              "    pm.expect(jsonData.result).to.have.property(\"token\");",
+              "});",
+              "",
+              "// Save token for subsequent requests",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.collectionVariables.set(\"token\", jsonData.result.token);",
+              "    console.log(\"Token saved successfully\");",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
       "request": {
         "method": "POST",
         "header": [
@@ -113,6 +140,35 @@
     },
     {
       "name": "6. Create COD Order",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Test: Create COD Order",
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Order created successfully\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.code).to.eql(1000);",
+              "    pm.expect(jsonData.result.status).to.eql(\"PENDING\");",
+              "});",
+              "",
+              "// Save orderId for next requests",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.collectionVariables.set(\"orderId\", jsonData.result.id);",
+              "    pm.collectionVariables.set(\"orderNumber\", jsonData.result.orderNumber);",
+              "    console.log(\"Order ID saved: \" + jsonData.result.id);",
+              "    console.log(\"Order Number: \" + jsonData.result.orderNumber);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
       "request": {
         "method": "POST",
         "header": [
@@ -135,11 +191,58 @@
           "host": ["localhost"],
           "port": "8080",
           "path": ["order_flow", "api", "orders"]
-        }
+        },
+        "description": "Create COD Order - Order is created in PENDING status.\nNotifications will be sent when order is confirmed in step 7."
       }
     },
     {
       "name": "7. Confirm COD Order",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Test: Confirm COD Order - Triggers Kafka Notifications",
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Order confirmed successfully\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.code).to.eql(1000);",
+              "    pm.expect(jsonData.message).to.include(\"confirmed\");",
+              "    pm.expect(jsonData.result.status).to.eql(\"CONFIRMED\");",
+              "});",
+              "",
+              "// Verify notifications were triggered",
+              "pm.test(\"Order status is CONFIRMED (notifications triggered)\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.result.status).to.eql(\"CONFIRMED\");",
+              "    ",
+              "    // Kafka notifications should be sent:",
+              "    // 1. FLORIST notification to 'florist-notifications' topic",
+              "    // 2. CUSTOMER notification to 'order-notifications' topic",
+              "    // 3. Email notifications to florist and customer",
+              "    ",
+              "    console.log(\"✅ Notifications triggered:\");",
+              "    console.log(\"  - Kafka: florist-notifications topic\");",
+              "    console.log(\"  - Kafka: order-notifications topic\");",
+              "    console.log(\"  - Email: Florist and Customer\");",
+              "    console.log(\"  - Check Kafka UI: http://localhost:8081\");",
+              "    console.log(\"  - Check application logs for Kafka messages\");",
+              "});",
+              "",
+              "// Save order number for verification",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.collectionVariables.set(\"orderNumber\", jsonData.result.orderNumber);",
+              "    console.log(\"Order Number: \" + jsonData.result.orderNumber);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
       "request": {
         "method": "POST",
         "header": [
@@ -154,7 +257,8 @@
           "host": ["localhost"],
           "port": "8080",
           "path": ["order_flow", "api", "orders", "{{orderId}}", "confirm-cod"]
-        }
+        },
+        "description": "Confirm COD Order - This triggers:\n1. Kafka notification to 'florist-notifications' topic\n2. Kafka notification to 'order-notifications' topic\n3. Email notification to florist\n4. Email notification to customer\n\nVerify in Kafka UI (http://localhost:8081) or check application logs."
       }
     },
     {
@@ -194,18 +298,208 @@
           "path": ["order_flow", "api", "orders"]
         }
       }
+    },
+    {
+      "name": "10. Update Order Status (Florist) - Trigger STATUS_UPDATE Notification",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Test: Update Order Status - Triggers Kafka STATUS_UPDATE Notification",
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Order status updated successfully\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.code).to.eql(1000);",
+              "    pm.expect(jsonData.message).to.include(\"updated\");",
+              "    pm.expect(jsonData.result.status).to.be.oneOf([\"SHIPPED\", \"DELIVERED\", \"CANCELLED\"]);",
+              "});",
+              "",
+              "// Verify STATUS_UPDATE notification was triggered",
+              "pm.test(\"STATUS_UPDATE notification triggered\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    var newStatus = jsonData.result.status;",
+              "    ",
+              "    // Kafka notification should be sent to 'order-status-updates' topic",
+              "    // Email notification should be sent to customer",
+              "    ",
+              "    console.log(\"✅ STATUS_UPDATE notification triggered:\");",
+              "    console.log(\"  - Kafka: order-status-updates topic\");",
+              "    console.log(\"  - Email: Customer notification\");",
+              "    console.log(\"  - New Status: \" + newStatus);",
+              "    console.log(\"  - Check Kafka UI: http://localhost:8081\");",
+              "    console.log(\"  - Check application logs for Kafka messages\");",
+              "});",
+              "",
+              "// Save updated status",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.collectionVariables.set(\"orderStatus\", jsonData.result.status);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{floristToken}}"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8080/order_flow/api/orders/{{orderId}}/status?status=SHIPPED",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["order_flow", "api", "orders", "{{orderId}}", "status"],
+          "query": [
+            {
+              "key": "status",
+              "value": "SHIPPED",
+              "description": "Order status: PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED"
+            }
+          ]
+        },
+        "description": "Update Order Status (Florist only) - This triggers:\n1. Kafka notification to 'order-status-updates' topic\n2. Email notification to customer\n\nNote: Requires FLORIST role. Use floristToken variable.\n\nAvailable statuses:\n- SHIPPED: Order has been shipped\n- DELIVERED: Order has been delivered\n- CANCELLED: Order has been cancelled\n\nVerify in Kafka UI (http://localhost:8081) or check application logs."
+      }
+    },
+    {
+      "name": "11. Update Order Status to DELIVERED",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Test: Update Order Status to DELIVERED",
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Order status is DELIVERED\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.result.status).to.eql(\"DELIVERED\");",
+              "});",
+              "",
+              "console.log(\"✅ Order delivered - STATUS_UPDATE notification sent\");"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{floristToken}}"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8080/order_flow/api/orders/{{orderId}}/status?status=DELIVERED",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["order_flow", "api", "orders", "{{orderId}}", "status"],
+          "query": [
+            {
+              "key": "status",
+              "value": "DELIVERED"
+            }
+          ]
+        },
+        "description": "Update Order Status to DELIVERED - Triggers STATUS_UPDATE notification"
+      }
+    },
+    {
+      "name": "12. Verify Kafka Notifications (Info)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Information: How to verify Kafka notifications",
+              "pm.test(\"Kafka UI Access Instructions\", function () {",
+              "    console.log(\"\\n📋 How to Verify Kafka Notifications:\\n\");",
+              "    console.log(\"1. Open Kafka UI: http://localhost:8081\");",
+              "    console.log(\"2. Check the following topics:\");",
+              "    console.log(\"   - florist-notifications (FLORIST notifications)\");",
+              "    console.log(\"   - order-notifications (CUSTOMER notifications)\");",
+              "    console.log(\"   - order-status-updates (STATUS_UPDATE notifications)\");",
+              "    console.log(\"\\n3. Check Application Logs for:\");",
+              "    console.log(\"   - 'Kafka notification sent successfully'\");",
+              "    console.log(\"   - 'Email notification sent successfully'\");",
+              "    console.log(\"\\n4. Check Email Inbox:\");",
+              "    var floristEmail = pm.collectionVariables.get(\"floristEmail\");",
+              "    console.log(\"   - Florist email: \" + floristEmail);",
+              "    console.log(\"   - Customer email: customer1@example.com\");",
+              "    console.log(\"\\n5. Expected Notifications:\");",
+              "    console.log(\"   - Step 7: FLORIST + CUSTOMER (Kafka + Email)\");",
+              "    console.log(\"   - Step 10: STATUS_UPDATE (Kafka + Email)\");",
+              "    console.log(\"   - Step 11: STATUS_UPDATE (Kafka + Email)\");",
+              "    ",
+              "    pm.expect(true).to.be.true;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8081",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8081",
+          "path": []
+        },
+        "description": "Access Kafka UI to verify notifications.\n\nKafka UI provides:\n- View all topics\n- Browse messages in topics\n- View message details\n- Monitor consumer groups\n\nThis is an informational request to help you verify Kafka notifications."
+      }
     }
   ],
   "variable": [
     {
       "key": "token",
       "value": "",
-      "type": "string"
+      "type": "string",
+      "description": "JWT token for customer authentication"
+    },
+    {
+      "key": "floristToken",
+      "value": "",
+      "type": "string",
+      "description": "JWT token for florist authentication (required for status updates)"
     },
     {
       "key": "orderId",
       "value": "",
-      "type": "string"
+      "type": "string",
+      "description": "Order ID (auto-saved from step 6)"
+    },
+    {
+      "key": "orderNumber",
+      "value": "",
+      "type": "string",
+      "description": "Order Number (auto-saved from step 6)"
+    },
+    {
+      "key": "orderStatus",
+      "value": "",
+      "type": "string",
+      "description": "Current order status"
+    },
+    {
+      "key": "floristEmail",
+      "value": "hoangduc170803@gmail.com",
+      "type": "string",
+      "description": "Florist email for notifications"
     }
   ]
 }
