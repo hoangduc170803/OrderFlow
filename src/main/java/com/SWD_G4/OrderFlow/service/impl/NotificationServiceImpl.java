@@ -79,7 +79,7 @@ public class NotificationServiceImpl implements NotificationService {
             if (StringUtils.hasText(florist.getEmail())) {
                 sendNotificationToFlorist(order, florist.getEmail());
             } else {
-                log.warn("Florist {} (ID: {}) has no email address, skipping notification", 
+                log.warn("Florist {} (ID: {}) has no email address, skipping notification",
                         florist.getUsername(), florist.getId());
             }
         }
@@ -124,7 +124,7 @@ public class NotificationServiceImpl implements NotificationService {
             return;
         }
         
-        // Send real-time notification via Kafka
+//         Send real-time notification via Kafka
         if (kafkaEnabled) {
             sendKafkaNotification(order, "CUSTOMER", customer.getEmail());
         }

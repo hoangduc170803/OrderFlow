@@ -18,13 +18,14 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 @Transactional
 public class OrderService {
-    
+
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final CartRepository cartRepository;
@@ -84,8 +85,9 @@ public class OrderService {
                     
                     return orderItemRepository.save(orderItem);
                 })
-                .toList();
-        
+                .collect(Collectors.toList());
+
+
         order.setOrderItems(orderItems);
         
         // Process COD flow
@@ -100,7 +102,8 @@ public class OrderService {
         cartRepository.save(cart);
         
         log.info("Order created successfully: {}", orderNumber);
-        
+        confirmCODOrder(user, order.getId());
+
         return orderMapper.toOrderResponse(order);
     }
     
@@ -124,8 +127,7 @@ public class OrderService {
         }
         
         // Update order status to CONFIRMED
-        order.setStatus(Order.OrderStatus.CONFIRMED);
-        order = orderRepository.save(order);
+//        order = orderRepository.save(order);
         
         // Decrement product inventory
         decrementProductInventory(order.getOrderItems());
