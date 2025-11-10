@@ -19,6 +19,11 @@ public class UserResponse {
     String firstName;
     String lastName;
     LocalDate dob;
+    String phoneNumber;
+    String address;
+    String city;
+    String district;
+    String ward;
     Set<RoleResponse> roles;
     LocalDateTime createdAt;
 }

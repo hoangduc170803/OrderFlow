@@ -43,6 +43,21 @@ public class User {
     @Column(name = "dob")
     private LocalDate dob;
 
+    @Column(name = "phone_number")
+    private String phoneNumber;
+
+    @Column(name = "address")
+    private String address;
+
+    @Column(name = "city")
+    private String city;
+
+    @Column(name = "district")
+    private String district;
+
+    @Column(name = "ward")
+    private String ward;
+
     @ManyToMany
     @JoinTable(
         name = "user_role",

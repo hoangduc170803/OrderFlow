@@ -4,9 +4,6 @@ import java.time.LocalDate;
 
 import com.SWD_G4.OrderFlow.validator.DobConstraint;
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.Size;
-
-
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -16,13 +13,7 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class UserCreationRequest {
-    @Size(min = 4, message = "USERNAME_INVALID")
-    String username;
-
-    @Size(min = 6, message = "INVALID_PASSWORD")
-    String password;
-
+public class UserUpdateRequest {
     @Email(message = "INVALID_EMAIL")
     String email;
 
@@ -38,3 +29,4 @@ public class UserCreationRequest {
     String district;
     String ward;
 }
+

@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CreateOrderRequest {
-    @NotBlank(message = "Shipping address is required")
+    // Optional - if not provided, will use user's saved address
     private String shippingAddress;
     
     private String notes;

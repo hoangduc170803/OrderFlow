@@ -1,6 +1,7 @@
 package com.SWD_G4.OrderFlow.controller;
 
 import com.SWD_G4.OrderFlow.dto.request.UserCreationRequest;
+import com.SWD_G4.OrderFlow.dto.request.UserUpdateRequest;
 import com.SWD_G4.OrderFlow.dto.response.ApiResponse;
 import com.SWD_G4.OrderFlow.dto.response.RoleResponse;
 import com.SWD_G4.OrderFlow.dto.response.UserResponse;
@@ -14,7 +15,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Set;
@@ -57,6 +60,11 @@ public class UserController {
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
                 .dob(request.getDob())
+                .phoneNumber(request.getPhoneNumber())
+                .address(request.getAddress())
+                .city(request.getCity())
+                .district(request.getDistrict())
+                .ward(request.getWard())
                 .roles(Set.of(customerRole))
                 .build();
         
@@ -88,6 +96,11 @@ public class UserController {
                 .firstName(user.getFirstName())
                 .lastName(user.getLastName())
                 .dob(user.getDob())
+                .phoneNumber(user.getPhoneNumber())
+                .address(user.getAddress())
+                .city(user.getCity())
+                .district(user.getDistrict())
+                .ward(user.getWard())
                 .roles(roleResponses)
                 .createdAt(user.getCreatedAt())
                 .build();
@@ -101,5 +114,136 @@ public class UserController {
             log.error("Error creating user: {}", e.getMessage(), e);
             throw e;
         }
+    }
+    
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<UserResponse>> getCurrentUser(Authentication authentication) {
+        Jwt jwt = (Jwt) authentication.getPrincipal();
+        String username = jwt.getSubject();
+        
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        
+        // Load user with roles
+        user = userRepository.findByIdWithRoles(user.getId()).orElse(user);
+        
+        // Convert roles to RoleResponse
+        java.util.Set<RoleResponse> roleResponses = null;
+        if (user.getRoles() != null && !user.getRoles().isEmpty()) {
+            roleResponses = new java.util.HashSet<>();
+            for (Role role : user.getRoles()) {
+                RoleResponse roleResponse = RoleResponse.builder()
+                        .id(role.getId())
+                        .name(role.getName())
+                        .description(role.getDescription())
+                        .build();
+                roleResponses.add(roleResponse);
+            }
+        }
+        
+        UserResponse userResponse = UserResponse.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .dob(user.getDob())
+                .phoneNumber(user.getPhoneNumber())
+                .address(user.getAddress())
+                .city(user.getCity())
+                .district(user.getDistrict())
+                .ward(user.getWard())
+                .roles(roleResponses)
+                .createdAt(user.getCreatedAt())
+                .build();
+        
+        return ResponseEntity.ok(ApiResponse.<UserResponse>builder()
+                .code(1000)
+                .message("Get current user successfully")
+                .result(userResponse)
+                .build());
+    }
+    
+    @PutMapping("/me")
+    public ResponseEntity<ApiResponse<UserResponse>> updateCurrentUser(
+            @Valid @RequestBody UserUpdateRequest request,
+            Authentication authentication) {
+        Jwt jwt = (Jwt) authentication.getPrincipal();
+        String username = jwt.getSubject();
+        
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        
+        log.info("Updating user: {}", username);
+        
+        // Update user fields
+        if (request.getEmail() != null) {
+            user.setEmail(request.getEmail());
+        }
+        if (request.getFirstName() != null) {
+            user.setFirstName(request.getFirstName());
+        }
+        if (request.getLastName() != null) {
+            user.setLastName(request.getLastName());
+        }
+        if (request.getDob() != null) {
+            user.setDob(request.getDob());
+        }
+        if (request.getPhoneNumber() != null) {
+            user.setPhoneNumber(request.getPhoneNumber());
+        }
+        if (request.getAddress() != null) {
+            user.setAddress(request.getAddress());
+        }
+        if (request.getCity() != null) {
+            user.setCity(request.getCity());
+        }
+        if (request.getDistrict() != null) {
+            user.setDistrict(request.getDistrict());
+        }
+        if (request.getWard() != null) {
+            user.setWard(request.getWard());
+        }
+        
+        user = userRepository.save(user);
+        
+        // Load user with roles
+        user = userRepository.findByIdWithRoles(user.getId()).orElse(user);
+        
+        // Convert roles to RoleResponse
+        java.util.Set<RoleResponse> roleResponses = null;
+        if (user.getRoles() != null && !user.getRoles().isEmpty()) {
+            roleResponses = new java.util.HashSet<>();
+            for (Role role : user.getRoles()) {
+                RoleResponse roleResponse = RoleResponse.builder()
+                        .id(role.getId())
+                        .name(role.getName())
+                        .description(role.getDescription())
+                        .build();
+                roleResponses.add(roleResponse);
+            }
+        }
+        
+        UserResponse userResponse = UserResponse.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .dob(user.getDob())
+                .phoneNumber(user.getPhoneNumber())
+                .address(user.getAddress())
+                .city(user.getCity())
+                .district(user.getDistrict())
+                .ward(user.getWard())
+                .roles(roleResponses)
+                .createdAt(user.getCreatedAt())
+                .build();
+        
+        return ResponseEntity.ok(ApiResponse.<UserResponse>builder()
+                .code(1000)
+                .message("User updated successfully")
+                .result(userResponse)
+                .build());
     }
 }

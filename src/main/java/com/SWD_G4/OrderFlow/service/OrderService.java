@@ -48,13 +48,21 @@ public class OrderService {
         // Generate order number
         String orderNumber = generateOrderNumber();
         
+        // Determine shipping address
+        String shippingAddress = request.getShippingAddress();
+        if (shippingAddress == null || shippingAddress.trim().isEmpty()) {
+            // Use user's saved address if not provided
+            shippingAddress = buildUserAddress(user);
+            log.info("Using user's saved address for order: {}", shippingAddress);
+        }
+        
         // Create order
         Order order = Order.builder()
                 .orderNumber(orderNumber)
                 .user(user)
                 .totalAmount(cart.getTotalAmount())
                 .status(Order.OrderStatus.PENDING)
-                .shippingAddress(request.getShippingAddress())
+                .shippingAddress(shippingAddress)
                 .notes(request.getNotes())
                 .paymentMethod(request.getPaymentMethod())
                 .build();
@@ -226,5 +234,38 @@ public class OrderService {
         String timestamp = String.valueOf(System.currentTimeMillis());
         String uuid = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         return "ORD-" + timestamp + "-" + uuid;
+    }
+    
+    private String buildUserAddress(User user) {
+        StringBuilder address = new StringBuilder();
+        
+        // Add address parts if they exist
+        if (user.getAddress() != null && !user.getAddress().trim().isEmpty()) {
+            address.append(user.getAddress());
+        }
+        
+        if (user.getWard() != null && !user.getWard().trim().isEmpty()) {
+            if (address.length() > 0) address.append(", ");
+            address.append(user.getWard());
+        }
+        
+        if (user.getDistrict() != null && !user.getDistrict().trim().isEmpty()) {
+            if (address.length() > 0) address.append(", ");
+            address.append(user.getDistrict());
+        }
+        
+        if (user.getCity() != null && !user.getCity().trim().isEmpty()) {
+            if (address.length() > 0) address.append(", ");
+            address.append(user.getCity());
+        }
+        
+        String finalAddress = address.toString();
+        
+        // If no address components are available, throw an error
+        if (finalAddress.isEmpty()) {
+            throw new AppException(ErrorCode.INVALID_KEY); // or create a new error code for missing address
+        }
+        
+        return finalAddress;
     }
 }
