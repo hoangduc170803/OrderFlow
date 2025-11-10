@@ -21,7 +21,6 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-@Transactional
 public class CartService {
     
     private final CartRepository cartRepository;
@@ -30,16 +29,15 @@ public class CartService {
     private final CartMapper cartMapper;
     private final EntityManager entityManager;
     
+    @Transactional(readOnly = true)
     public CartResponse getCart(User user) {
-        Cart cart = cartRepository.findByUserWithItems(user)
-                .orElseGet(() -> createCartForUser(user));
-        
-        cart.calculateTotalAmount();
-        cartRepository.save(cart);
-        
-        return cartMapper.toCartResponse(cart);
+        // Always return a fresh, recalculated cart snapshot
+        // Create cart if missing, then refresh from DB
+        cartRepository.findByUser(user).orElseGet(() -> createCartForUser(user));
+        return refreshCartResponse(user);
     }
     
+    @Transactional
     public CartResponse addToCart(User user, AddToCartRequest request) {
         log.info("Adding product {} with quantity {} to cart for user {}", 
                 request.getProductId(), request.getQuantity(), user.getUsername());
@@ -96,26 +94,14 @@ public class CartService {
             log.info("Created new cart item with ID: {}", cartItem.getId());
         }
         
-        // Flush any pending changes to database
-        entityManager.flush();
+        CartResponse response = refreshCartResponse(user);
         
-        // Clear the persistence context to force fresh data from database
-        entityManager.clear();
+        log.info("Cart updated - Total amount: {}", response.getTotalAmount());
         
-        // Refresh cart to get updated cart items and recalculate total
-        cart = cartRepository.findByUserWithItems(user)
-                .orElseThrow(() -> new AppException(ErrorCode.CART_NOT_FOUND));
-        
-        // Recalculate cart total
-        cart.calculateTotalAmount();
-        cartRepository.save(cart);
-        
-        log.info("Cart updated - Items count: {}, Total amount: {}", 
-                cart.getCartItems() != null ? cart.getCartItems().size() : 0, cart.getTotalAmount());
-        
-        return cartMapper.toCartResponse(cart);
+        return response;
     }
     
+    @Transactional
     public CartResponse updateCartItem(User user, Long cartItemId, UpdateCartItemRequest request) {
         Cart cart = cartRepository.findByUserWithItems(user)
                 .orElseThrow(() -> new AppException(ErrorCode.CART_NOT_FOUND));
@@ -137,42 +123,79 @@ public class CartService {
         cartItem.calculateTotalPrice();
         cartItemRepository.save(cartItem);
         
-        // Recalculate cart total
-        cart.calculateTotalAmount();
-        cartRepository.save(cart);
-        
-        return cartMapper.toCartResponse(cart);
+        return refreshCartResponse(user);
     }
     
+    @Transactional
     public CartResponse removeFromCart(User user, Long cartItemId) {
+        log.info("Attempting to delete cart item ID: {} for user: {}", cartItemId, user.getUsername());
+        
         Cart cart = cartRepository.findByUserWithItems(user)
                 .orElseThrow(() -> new AppException(ErrorCode.CART_NOT_FOUND));
+        
+        log.info("Found cart ID: {} with {} items", cart.getId(), 
+                cart.getCartItems() != null ? cart.getCartItems().size() : 0);
         
         CartItem cartItem = cartItemRepository.findById(cartItemId)
                 .orElseThrow(() -> new AppException(ErrorCode.CART_ITEM_NOT_FOUND));
         
         // Verify cart item belongs to user's cart
         if (!cartItem.getCart().getId().equals(cart.getId())) {
+            log.error("Cart item {} does not belong to cart {}", cartItemId, cart.getId());
             throw new AppException(ErrorCode.CART_ITEM_NOT_FOUND);
         }
         
-        cartItemRepository.delete(cartItem);
+        log.info("Deleting cart item - Product: {}, Quantity: {}", 
+                cartItem.getProduct().getName(), cartItem.getQuantity());
         
-        // Recalculate cart total
-        cart.calculateTotalAmount();
+        // Remove from cart's collection first (triggers orphanRemoval)
+        if (cart.getCartItems() != null) {
+            boolean removed = cart.getCartItems().remove(cartItem);
+            log.info("Removed from collection: {}", removed);
+        }
+        
+        // Save cart to persist the collection change
         cartRepository.save(cart);
         
-        return cartMapper.toCartResponse(cart);
+        // Then delete explicitly from repository
+        cartItemRepository.delete(cartItem);
+        
+        // Flush to database immediately
+        entityManager.flush();
+        
+        log.info("Cart item deleted and flushed to database");
+        
+        return refreshCartResponse(user);
     }
     
+    @Transactional
     public void clearCart(User user) {
+        log.info("Attempting to clear cart for user: {}", user.getUsername());
+        
         Cart cart = cartRepository.findByUserWithItems(user)
                 .orElseThrow(() -> new AppException(ErrorCode.CART_NOT_FOUND));
         
+        int itemCount = cart.getCartItems() != null ? cart.getCartItems().size() : 0;
+        log.info("Found cart ID: {} with {} items to delete", cart.getId(), itemCount);
+        
+        // Clear the collection first (triggers orphanRemoval due to cascade)
+        if (cart.getCartItems() != null && !cart.getCartItems().isEmpty()) {
+            cart.getCartItems().clear();
+            log.info("Cleared cart items collection");
+        }
+        
+        // Save cart to persist the collection change
+        cartRepository.save(cart);
+        
+        // Then delete all items explicitly from repository
         cartItemRepository.deleteByCart(cart);
         
-        cart.calculateTotalAmount();
-        cartRepository.save(cart);
+        // Flush to database immediately
+        entityManager.flush();
+        
+        log.info("Cart cleared successfully - {} items deleted", itemCount);
+        
+        refreshCartResponse(user);
     }
     
     private Cart createCartForUser(User user) {
@@ -182,5 +205,18 @@ public class CartService {
                 .build();
         
         return cartRepository.save(cart);
+    }
+    
+    private CartResponse refreshCartResponse(User user) {
+        entityManager.flush();
+        entityManager.clear();
+        
+        Cart refreshedCart = cartRepository.findByUserWithItems(user)
+                .orElseThrow(() -> new AppException(ErrorCode.CART_NOT_FOUND));
+        
+        refreshedCart.calculateTotalAmount();
+        cartRepository.save(refreshedCart);
+        
+        return cartMapper.toCartResponse(refreshedCart);
     }
 }

@@ -121,6 +121,40 @@
     },
     {
       "name": "5. View Cart",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Test: View cart and save first cartItemId if present",
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Cart loaded\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.code).to.eql(1000);",
+              "    pm.expect(jsonData).to.have.property(\"result\");",
+              "});",
+              "",
+              "// Save first cart item id for update/delete tests",
+              "try {",
+              "    var jsonData = pm.response.json();",
+              "    var items = (jsonData.result && jsonData.result.cartItems) ? jsonData.result.cartItems : [];",
+              "    if (items && items.length > 0 && items[0].id) {",
+              "        pm.collectionVariables.set(\"cartItemId\", items[0].id);",
+              "        console.log(\"cartItemId saved:\", items[0].id);",
+              "    } else {",
+              "        console.warn(\"No cart items to save cartItemId from.\");",
+              "    }",
+              "} catch (e) {",
+              "    console.error(\"Failed to parse cart response\", e);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
       "request": {
         "method": "GET",
         "header": [
@@ -135,6 +169,127 @@
           "host": ["localhost"],
           "port": "8080",
           "path": ["order_flow", "api", "cart"]
+        }
+      }
+    },
+    {
+      "name": "5b. Update Cart Item Quantity",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Test: Update cart item quantity",
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Cart item updated\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.code).to.eql(1000);",
+              "    pm.expect(jsonData).to.have.property(\"result\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"quantity\": 3\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/order_flow/api/cart/items/{{cartItemId}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["order_flow", "api", "cart", "items", "{{cartItemId}}"]
+        }
+      }
+    },
+    {
+      "name": "5c. Delete Cart Item",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Test: Delete cart item",
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Cart item deleted\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.code).to.eql(1000);",
+              "    pm.expect(jsonData).to.have.property(\"result\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8080/order_flow/api/cart/items/{{cartItemId}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["order_flow", "api", "cart", "items", "{{cartItemId}}"]
+        }
+      }
+    },
+    {
+      "name": "5d. Clear Cart",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Test: Clear entire cart",
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Cart cleared\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.code).to.eql(1000);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8080/order_flow/api/cart/clear",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["order_flow", "api", "cart", "clear"]
         }
       }
     },
@@ -494,6 +649,12 @@
       "value": "",
       "type": "string",
       "description": "Current order status"
+    },
+    {
+      "key": "cartItemId",
+      "value": "",
+      "type": "string",
+      "description": "Saved from View Cart for item update/delete"
     },
     {
       "key": "floristEmail",

@@ -43,13 +43,47 @@ public class ProductServiceImpl implements ProductService {
     }
     
     @Override
-    @Cacheable(value = "products", key = "#productId", unless = "#result == null")
     public Optional<Product> findById(Long productId) {
+        String cacheKey = "products::" + productId;
+        
+        // Try cache if Redis is available
+        if (redisTemplate != null) {
+            try {
+                Object cachedObject = redisTemplate.opsForValue().get(cacheKey);
+                
+                if (cachedObject != null) {
+                    // Convert from LinkedHashMap (deserialized from JSON) to Product
+                    Product product;
+                    if (cachedObject instanceof Product) {
+                        product = (Product) cachedObject;
+                    } else {
+                        // Deserialize from LinkedHashMap or Map to Product
+                        product = objectMapper.convertValue(cachedObject, Product.class);
+                    }
+                    
+                    log.info("📦 Cache HIT - Returning cached product: {}", productId);
+                    return Optional.of(product);
+                }
+            } catch (Exception e) {
+                log.warn("Error reading product from cache, falling back to database: {}", e.getMessage());
+                log.debug("Cache error details: ", e);
+            }
+        }
+        
+        // Cache MISS - Fetch from database
         log.info("🔍 Cache MISS - Fetching product from database: {}", productId);
         Optional<Product> product = productRepository.findById(productId);
-        if (product.isPresent()) {
-            log.info("✅ Product cached: {} - Next request will use Redis cache", productId);
+        
+        // Cache the result if Redis is available and product exists
+        if (product.isPresent() && redisTemplate != null) {
+            try {
+                redisTemplate.opsForValue().set(cacheKey, product.get(), 1, TimeUnit.HOURS);
+                log.info("✅ Product cached: {} - Next request will use Redis cache", productId);
+            } catch (Exception e) {
+                log.warn("Error caching product: {}", e.getMessage());
+            }
         }
+        
         return product;
     }
     
@@ -146,11 +180,53 @@ public class ProductServiceImpl implements ProductService {
     }
     
     @Override
-    @Cacheable(value = "productList", key = "'category_' + #categoryId", unless = "#result == null || #result.isEmpty()")
     public List<Product> findByCategoryId(Long categoryId) {
-        log.info(" Cache MISS - Fetching products by category from database: {}", categoryId);
+        String cacheKey = "productList::category_" + categoryId;
+        
+        // Try cache if Redis is available
+        if (redisTemplate != null) {
+            try {
+                Object cachedObject = redisTemplate.opsForValue().get(cacheKey);
+                
+                if (cachedObject != null) {
+                    // Convert from List of LinkedHashMaps to List of Products
+                    List<Product> products;
+                    if (cachedObject instanceof List<?>) {
+                        List<?> list = (List<?>) cachedObject;
+                        if (!list.isEmpty() && list.get(0) instanceof Product) {
+                            products = (List<Product>) cachedObject;
+                        } else {
+                            // Deserialize from List of LinkedHashMaps to List of Products
+                            products = objectMapper.convertValue(
+                                cachedObject, 
+                                objectMapper.getTypeFactory().constructCollectionType(List.class, Product.class)
+                            );
+                        }
+                        
+                        log.info("Cache HIT - Returning cached products for category: {} ({} products)", categoryId, products.size());
+                        return products;
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Error reading products by category from cache, falling back to database: {}", e.getMessage());
+                log.debug("Cache error details: ", e);
+            }
+        }
+        
+        // Cache MISS - Fetch from database
+        log.info("🔍 Cache MISS - Fetching products by category from database: {}", categoryId);
         List<Product> products = productRepository.findByCategoryIdAndIsActiveTrue(categoryId);
-        log.info(" Products cached for category: {} ({} products) - Next request will use Redis cache", categoryId, products.size());
+        
+        // Cache the result if Redis is available and list is not empty
+        if (!products.isEmpty() && redisTemplate != null) {
+            try {
+                redisTemplate.opsForValue().set(cacheKey, products, 1, TimeUnit.HOURS);
+                log.info(" Products cached for category: {} ({} products) - Next request will use Redis cache", categoryId, products.size());
+            } catch (Exception e) {
+                log.warn("Error caching products by category: {}", e.getMessage());
+            }
+        }
+        
         return products;
     }
     
